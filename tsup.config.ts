@@ -11,4 +11,7 @@ export default defineConfig({
   treeshake: true,
   minify: true,
   external: ['react', 'next'],
+  noExternal: ['react'],
+  target: 'es2020',
+  platform: 'browser',
 });

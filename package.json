@@ -1,6 +1,6 @@
 {
   "name": "next-state",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Type-safe, server-aware state management for Next.js applications",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -16,6 +16,14 @@
     "lint": "eslint src/**/*.ts",
     "prepublish": "pnpm build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RaheesAhmed/next-state.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RaheesAhmed/next-state/issues"
+  },
+  "homepage": "https://github.com/RaheesAhmed/next-state#readme",
   "peerDependencies": {
     "next": ">=13",
     "react": ">=18"
@@ -28,20 +36,27 @@
     "state-management",
     "typescript"
   ],
-  "author": "",
+  "author": "Rahees Ahmed",
   "license": "MIT",
   "dependencies": {
     "@types/react": "^18.2.45",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/node": "^20.10.4",
+    "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "eslint": "^8.55.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.33.2",
+    "jsdom": "^23.0.1",
     "prettier": "^3.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "vitest": "^1.0.4"

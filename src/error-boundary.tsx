@@ -12,10 +12,10 @@ export class NextStateError extends Error {
 }
 
 export class NextStateErrorBoundary extends React.Component<
-  { fallback?: React.ReactNode },
+  { fallback?: React.ReactNode; children: React.ReactNode },
   { hasError: boolean; error?: NextStateError }
 > {
-  constructor(props: { fallback?: React.ReactNode }) {
+  constructor(props: { fallback?: React.ReactNode; children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }

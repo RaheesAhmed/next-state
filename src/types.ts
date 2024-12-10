@@ -1,22 +1,21 @@
-export type NextStateMigration<T> = {
-  version: number;
-  migrate: (state: any) => T;
-};
-
-export type NextStateMiddlewareConfig<T> = {
-  condition?: (prev: T, next: T) => boolean;
-  onStateChange: (prev: T, next: T) => void;
+export interface NextStateMiddleware<T> {
+  id?: string;
   priority?: number;
-};
+  onStateChange?: (prev: T, next: T) => void | Promise<void>;
+  onError?: (error: Error) => void;
+}
 
-export type NextStateStorageConfig<T> = {
-  storage: "localStorage" | "sessionStorage" | "indexedDB";
-  key?: string;
-  version?: number;
-  migrations?: NextStateMigration<T>[];
-  onError?: (error: NextStateError) => void;
-  retry?: {
-    attempts: number;
-    delay: number;
+export interface NextStateConfig<T extends object> {
+  initialState: T;
+  options?: {
+    middleware?: NextStateMiddleware<T>[];
+    devTools?: boolean;
+    suspense?: boolean;
   };
-};
+}
+
+export interface NextStateStorage<T> {
+  get: () => Promise<T | null>;
+  set: (value: T) => Promise<void>;
+  remove: () => Promise<void>;
+}
