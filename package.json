@@ -1,5 +1,5 @@
 {
-  "name": "@rahees/next-state",
+  "name": "@raheesahmed/next-state",
   "version": "1.0.0",
   "description": "Type-safe, server-aware state management for Next.js applications",
   "main": "dist/index.js",
