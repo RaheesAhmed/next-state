@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simple box representing state -->
+  <rect 
+    x="20" 
+    y="20" 
+    width="60" 
+    height="60" 
+    fill="none" 
+    stroke="#0070f3" 
+    stroke-width="4"
+  />
+  
+  <!-- The 'N' arrow showing next -->
+  <path 
+    d="M 35 65 L 35 35 L 65 65 L 65 35" 
+    fill="none"
+    stroke="#0070f3" 
+    stroke-width="4" 
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

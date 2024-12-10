@@ -1009,3 +1009,52 @@ const fetchWithRetry = createNextAction(() => async (state) => {
   }
 });
 ```
+
+// Example usage with all enterprise features
+const {
+Provider,
+useNextState,
+middlewareRegistry
+} = createNextState<AppState>({
+initialState: {
+user: null,
+todos: [],
+settings: { theme: 'light' }
+},
+options: {
+persist: {
+storage: 'indexedDB',
+key: 'app-state',
+version: 2,
+migrations: [
+{
+version: 2,
+migrate: (oldState) => ({
+...oldState,
+settings: { theme: 'light', ...oldState.settings }
+})
+}
+],
+retry: {
+attempts: 3,
+delay: 1000
+},
+onError: (error) => {
+console.error('Storage error:', error);
+// Report to error tracking service
+}
+}
+}
+});
+
+// Add typed middleware
+const loggingMiddleware = middlewareRegistry.add({
+condition: (prev, next) => prev.todos.length !== next.todos.length,
+onStateChange: (prev, next) => {
+console.log('Todos changed:', {
+prev: prev.todos.length,
+next: next.todos.length
+});
+},
+priority: 1
+});
