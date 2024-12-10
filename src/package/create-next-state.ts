@@ -10,9 +10,9 @@ import React, {
   type ComponentType,
   type FC,
 } from 'react';
-import type { NextStateMiddleware, NextStateConfig } from './types';
+import type { NextStateMiddleware, NextStateConfig } from './types/types';
 import { NextStateError } from './error-boundary';
-import { createStorage } from './storage';
+import { createStorage } from './storage/storage';
 
 export function createNextState<T extends object>(config: NextStateConfig<T>) {
   type SetStateFunction = (update: Partial<T> | ((prev: T) => Partial<T>)) => void;

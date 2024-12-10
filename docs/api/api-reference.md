@@ -1,326 +1,324 @@
-# API Reference
+# Next State API Reference
 
-## Table of Contents
+## Core API
 
-- [createNextState](#createnextstate)
-- [useNextState](#usenextstate)
-- [createNextAction](#createnextaction)
-- [Provider](#provider)
-- [withNextServer](#withnextserver)
-- [MiddlewareRegistry](#middlewareregistry)
+### `create<T>`
 
-## createNextState
-
-Creates a new state instance with configuration options.
-
-### Type Definition
+Creates a new state store with type safety and configuration options.
 
 ```typescript
-function createNextState<T extends object>(config: {
-  initialState: T;
-  options?: {
-    persist?: PersistOptions<T>;
-    middleware?: Middleware<T>[];
-    devTools?: boolean | DevToolsOptions;
-    suspense?: boolean;
-  };
-}): {
-  Provider: React.FC<ProviderProps>;
-  useNextState: UseNextState<T>;
-  createNextAction: CreateNextAction<T>;
-  withNextServer: WithNextServer<T>;
-  middlewareRegistry: MiddlewareRegistry<T>;
-};
+function create<T extends object>(config: StateConfig<T>): NextStateStore<T>
 
-interface PersistOptions<T> {
-  storage: "localStorage" | "sessionStorage" | "indexedDB";
-  key?: string;
-  version?: number;
-  migrations?: Array<{
-    version: number;
-    migrate: (state: any) => T;
-  }>;
-  serialize?: (state: T) => string;
-  deserialize?: (serialized: string) => T;
-}
-
-interface DevToolsOptions {
-  name?: string;
-  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
-  features?: Array<"history" | "export" | "import" | "filter">;
-}
-```
-
-### Basic Usage
-
-```typescript
-const { Provider, useNextState } = createNextState({
+// Example
+const store = create({
   initialState: {
     count: 0,
-  },
-});
-```
-
-### With All Options
-
-```typescript
-const state = createNextState({
-  initialState: {
-    user: null,
-    settings: { theme: "light" },
+    user: null as User | null,
+    todos: [] as Todo[]
   },
   options: {
-    // Persistence configuration
-    persist: {
-      storage: "localStorage",
-      key: "app-state",
-      version: 1,
-      migrations: [
-        {
-          version: 1,
-          migrate: (oldState) => ({
-            ...oldState,
-            settings: { ...oldState.settings, newField: "default" },
-          }),
-        },
-      ],
-      serialize: (state) => JSON.stringify(state),
-      deserialize: (str) => JSON.parse(str),
-    },
-
-    // Development tools
-    devTools: {
-      name: "My App State",
-      position: "bottom-right",
-      features: ["history", "export"],
-    },
-
-    // Enable Suspense integration
-    suspense: true,
-  },
-});
-```
-
-## useNextState
-
-Hook to access and select state values.
-
-### Type Definition
-
-```typescript
-function useNextState<S>(
-  selector: (state: T) => S,
-  options?: {
-    compare?: (a: S, b: S) => boolean;
-    deps?: any[];
+    devTools: true,
+    storage: {
+      key: 'my-app',
+      version: 1
+    }
   }
-): S;
+});
 ```
 
-### Usage Examples
+#### Configuration Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `initialState` | `T` | The initial state object |
+| `devTools` | `boolean` | Enable development tools |
+| `storage` | `StorageConfig<T>` | Persistence configuration |
+| `middleware` | `Middleware<T>[]` | Custom middleware |
+| `suspense` | `boolean` | Enable React Suspense |
+
+### React Hooks
+
+#### `useNextState`
+
+Subscribe to state changes with automatic updates.
 
 ```typescript
-// Basic selection
-const count = useNextState((state) => state.count);
+function useNextState<T, R>(
+  selector?: (state: T) => R,
+  equalityFn?: (prev: R, next: R) => boolean
+): R
 
-// With custom comparison
-const user = useNextState((state) => state.user, {
-  compare: (a, b) => a?.id === b?.id,
-});
+// Example
+const count = useNextState(state => state.count);
+const user = useNextState(state => state.user, Object.is);
+```
 
-// Complex selection
-const todoStats = useNextState((state) => ({
-  total: state.todos.length,
-  completed: state.todos.filter((t) => t.completed).length,
-}));
+#### `useOptimisticUpdate`
 
-// With dependencies
-const filteredItems = useNextState(
-  (state) => filterItems(state.items, props.filter),
-  { deps: [props.filter] }
+Perform optimistic updates with automatic rollback.
+
+```typescript
+function useOptimisticUpdate<T>(): [
+  (update: DeepPartial<T>) => void,
+  boolean
+]
+
+// Example
+const [update, isPending] = useOptimisticUpdate();
+update({ count: count + 1 });
+```
+
+#### `useNextAction`
+
+Create type-safe actions with loading states.
+
+```typescript
+function useNextAction<T, P>(
+  action: (payload: P) => Promise<DeepPartial<T>>
+): {
+  execute: (payload: P) => Promise<void>;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+// Example
+const { execute, isLoading } = useNextAction(
+  async (id: string) => {
+    const user = await api.getUser(id);
+    return { user };
+  }
 );
 ```
 
-## createNextAction
+### Server Integration
 
-Creates a type-safe action creator.
+#### `withServerState`
 
-### Type Definition
+HOC for server component integration.
 
 ```typescript
-function createNextAction<Args extends any[], R = void>(
-  action: (...args: Args) => (state: T) => Partial<T> | Promise<Partial<T>>
-): (...args: Args) => Promise<R>;
+function withServerState<T, P>(
+  Component: React.ComponentType<P>,
+  config: StateConfig<T>,
+  options: ServerOptions
+): React.ComponentType<P>
+
+// Example
+export default withServerState(TodoApp, config, {
+  key: 'todos',
+  cache: { ttl: 60000 }
+});
 ```
 
-### Usage Examples
+#### `createServerAction`
+
+Create server-side actions with optimistic updates.
 
 ```typescript
-// Synchronous action
-const increment = createNextAction((amount: number = 1) => (state) => ({
-  count: state.count + amount,
-}));
+function createServerAction<T, P>(
+  serverState: ServerState<T>,
+  action: (payload: P) => Promise<DeepPartial<T>>
+): (payload: P) => Promise<void>
 
-// Async action with error handling
-const fetchUser = createNextAction((userId: string) => async (state) => {
-  try {
-    const user = await api.getUser(userId);
-    return { user, error: null };
-  } catch (error) {
-    return { error: error.message };
-  }
-});
-
-// Action with multiple updates
-const updateSettings = createNextAction(
-  (settings: Partial<Settings>) => (state) => ({
-    settings: { ...state.settings, ...settings },
-    lastUpdated: Date.now(),
+// Example
+const addTodo = createServerAction(serverState, 
+  async (text: string) => ({
+    todos: [{ id: Date.now(), text }]
   })
 );
 ```
 
-## MiddlewareRegistry
+### Storage
 
-Manages middleware for state changes.
-
-### Type Definition
+#### Storage Configuration
 
 ```typescript
-interface MiddlewareRegistry<T> {
-  add: (middleware: Middleware<T>) => string;
-  remove: (id: string) => void;
-  clear: () => void;
+interface StorageConfig<T> {
+  key: string;
+  version: number;
+  migrations?: {
+    [version: number]: (state: unknown) => T;
+  };
+  serialize?: (data: T) => string;
+  deserialize?: (data: string) => T;
 }
 
-interface Middleware<T> {
-  id?: string;
-  priority?: number;
-  onStateChange?: (prev: T, next: T) => void | Promise<void>;
-  onError?: (error: Error) => void | Promise<void>;
-  onInit?: (state: T) => void | Promise<void>;
-}
-```
-
-### Usage Examples
-
-```typescript
-// Adding middleware
-middlewareRegistry.add({
-  id: "logger",
-  priority: 1,
-  onStateChange: (prev, next) => {
-    console.log("State changed:", { prev, next });
-  },
-});
-
-// Conditional middleware
-middlewareRegistry.add({
-  id: "analytics",
-  onStateChange: (prev, next) => {
-    if (prev.user !== next.user) {
-      analytics.track("user_changed", next.user);
+// Example
+const config = {
+  storage: {
+    key: 'app-state',
+    version: 1,
+    migrations: {
+      0: (oldState) => ({
+        ...oldState,
+        newField: 'default'
+      })
     }
-  },
-});
-
-// Async middleware
-middlewareRegistry.add({
-  id: "sync",
-  onStateChange: async (prev, next) => {
-    await api.syncState(next);
-  },
-});
-```
-
-## withNextServer
-
-Creates server-side actions with caching.
-
-### Type Definition
-
-```typescript
-function withNextServer<Args extends any[], R>(
-  key: string,
-  handler: (...args: Args) => Promise<R>,
-  options?: {
-    cache?: boolean;
-    revalidate?: number;
   }
-): (...args: Args) => Promise<R>;
-```
-
-### Usage Examples
-
-```typescript
-// Basic server action
-const fetchData = withNextServer("fetch-data", async () => {
-  return await db.query();
-});
-
-// With cache options
-const getUser = withNextServer(
-  "get-user",
-  async (userId: string) => {
-    return await db.users.findUnique({ where: { id: userId } });
-  },
-  {
-    cache: true,
-    revalidate: 60, // Seconds
-  }
-);
-
-// With error handling
-const submitForm = withNextServer("submit-form", async (data: FormData) => {
-  try {
-    const result = await api.submit(data);
-    return { success: true, data: result };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-```
-
-## Type Utilities
-
-Helper types for common use cases.
-
-```typescript
-// Deep partial type
-type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
-
-// Action result type
-type ActionResult<T> = Partial<T> | Promise<Partial<T>>;
-
-// Selector type
-type Selector<T, R> = (state: T) => R;
 ```
 
-## Error Handling
-
-All async operations return structured error types:
+#### Storage Adapters
 
 ```typescript
-interface StateError {
-  code: "PERSISTENCE_ERROR" | "ACTION_ERROR" | "MIDDLEWARE_ERROR";
-  message: string;
-  originalError?: unknown;
+interface StorageAdapter<T> {
+  get(key: string): Promise<T | null>;
+  set(key: string, value: T): Promise<void>;
+  remove(key: string): Promise<void>;
+  clear(): Promise<void>;
 }
 
-// Error handling example
-try {
-  await action();
-} catch (error) {
-  if (error.code === "ACTION_ERROR") {
-    // Handle action error
-  }
-}
+// Example
+const storage = createStorage(config, 'indexedDB');
 ```
 
-## Next Steps
+### DevTools
 
-- Explore [Core Concepts](../getting-started/core-concepts.md)
-- Learn about [Advanced Patterns](../advanced/patterns.md)
-- Check out [Examples](../examples/README.md)
+#### Development Tools Configuration
+
+```typescript
+interface DevToolsConfig {
+  name?: string;
+  maxAge?: number;
+  latency?: number;
+  actionFilters?: string[];
+  stateSanitizer?: (state: any) => any;
+  actionSanitizer?: (action: any) => any;
+}
+
+// Example
+const store = create({
+  // ...
+  options: {
+    devTools: {
+      name: 'MyApp',
+      maxAge: 50,
+      actionFilters: ['SET_USER']
+    }
+  }
+});
+```
+
+### Error Handling
+
+#### Error Types
+
+```typescript
+interface NextStateError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+// Example
+throw new NextStateError({
+  code: 'INVALID_STATE',
+  message: 'Invalid state update',
+  details: { update }
+});
+```
+
+### Middleware
+
+#### Middleware Configuration
+
+```typescript
+interface Middleware<T> {
+  id: string;
+  priority?: number;
+  before?: (update: StateUpdate<T>) => StateUpdate<T> | null;
+  after?: (state: T) => void;
+  onError?: (error: Error) => void;
+}
+
+// Example
+const loggingMiddleware: Middleware<T> = {
+  id: 'logger',
+  priority: 1,
+  before: (update) => {
+    console.log('Before update:', update);
+    return update;
+  },
+  after: (state) => {
+    console.log('After update:', state);
+  }
+};
+```
+
+## Best Practices
+
+### State Structure
+
+1. Keep state flat and normalized
+2. Use TypeScript for type safety
+3. Avoid redundant data
+4. Use selectors for derived data
+5. Split large states into domains
+
+### Performance
+
+1. Use selectors with memoization
+2. Batch updates when possible
+3. Implement proper equality checks
+4. Avoid unnecessary re-renders
+5. Use optimistic updates for better UX
+
+### Error Handling
+
+1. Use type-safe error handling
+2. Implement proper error boundaries
+3. Provide detailed error messages
+4. Handle edge cases gracefully
+5. Log errors appropriately
+
+### Testing
+
+1. Test state updates
+2. Test selectors
+3. Test middleware
+4. Test error cases
+5. Test performance
+
+## Migration Guide
+
+### Version 1.x to 2.x
+
+```typescript
+// Before (1.x)
+const store = createStore({
+  state: initialState
+});
+
+// After (2.x)
+const store = create({
+  initialState,
+  options: {
+    devTools: true
+  }
+});
+```
+
+## TypeScript Support
+
+The library is written in TypeScript and provides full type safety:
+
+```typescript
+interface AppState {
+  user: User | null;
+  todos: Todo[];
+  settings: Settings;
+}
+
+const store = create<AppState>({
+  initialState: {
+    user: null,
+    todos: [],
+    settings: defaultSettings
+  }
+});
+
+// Type-safe selectors
+const user = useNextState(state => state.user);
+// Type-safe updates
+store.setState({ user: newUser });
+```

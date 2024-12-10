@@ -14,7 +14,8 @@
     "dev": "tsup --watch",
     "test": "vitest",
     "lint": "eslint src/**/*.ts",
-    "prepublish": "pnpm build"
+    "prepublish": "pnpm build",
+    "size": "size-limit"
   },
   "repository": {
     "type": "git",
@@ -39,10 +40,10 @@
   "author": "Rahees Ahmed",
   "license": "MIT",
   "dependencies": {
-    "@types/react": "^18.2.45",
-    "zustand": "^4.4.7"
+    "@types/react": "^18.2.45"
   },
   "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.0.1",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
@@ -57,8 +58,19 @@
     "prettier": "^3.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "size-limit": "^11.0.1",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "vitest": "^1.0.4"
-  }
+  },
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "4 KB"
+    },
+    {
+      "path": "dist/index.mjs",
+      "limit": "4 KB"
+    }
+  ]
 }

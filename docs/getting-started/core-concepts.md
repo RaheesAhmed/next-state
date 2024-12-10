@@ -1,279 +1,418 @@
 # Core Concepts
 
-Learn the fundamental principles behind next-state and how they work together to provide a powerful state management solution.
+## State Management Philosophy
 
-## Table of Contents
+Next State is built on several key principles:
 
-- [State Management Model](#state-management-model)
-- [Actions](#actions)
-- [Selectors](#selectors)
-- [Middleware](#middleware)
-- [Server Integration](#server-integration)
+1. **Type Safety First**
+   - Full TypeScript support
+   - Compile-time error detection
+   - Type inference
+   - Strict null checks
 
-## State Management Model
+2. **Minimal API Surface**
+   - Few core concepts to learn
+   - Intuitive method names
+   - Consistent patterns
+   - Clear documentation
 
-next-state uses a unidirectional data flow model:
+3. **Performance by Default**
+   - Automatic batching
+   - Selective re-rendering
+   - Memory optimization
+   - Bundle size control
 
-```typescript
-// Simple visualization of data flow:
-// Action → Middleware → State Update → UI Update
-```
+4. **Developer Experience**
+   - Helpful error messages
+   - Development tools
+   - Easy debugging
+   - Clear patterns
 
-### State Structure
+## Core Concepts
 
-Your state is a single, immutable object:
+### State Store
+
+The state store is the central concept in Next State. It holds your application's state and provides methods to update it.
 
 ```typescript
 interface AppState {
-  user: {
-    name: string;
-    email: string;
-  } | null;
-  settings: {
-    theme: "light" | "dark";
-    language: string;
-  };
-  ui: {
-    isLoading: boolean;
-    activeModal: string | null;
-  };
+  user: User | null;
+  todos: Todo[];
+  settings: Settings;
 }
 
-const { Provider, useNextState } = createNextState<AppState>({
+const store = create<AppState>({
   initialState: {
     user: null,
-    settings: {
-      theme: "light",
-      language: "en",
-    },
-    ui: {
-      isLoading: false,
-      activeModal: null,
-    },
-  },
+    todos: [],
+    settings: defaultSettings
+  }
 });
 ```
 
 ### State Updates
 
-All state updates are immutable and processed synchronously:
+State updates are immutable and type-safe:
 
 ```typescript
-// ❌ Don't modify state directly
-state.user.name = "John"; // This will cause errors
+// Direct update
+store.setState({ user: newUser });
 
-// ✅ Use actions to update state
-const updateUser = createNextAction((name: string) => (state) => ({
-  user: { ...state.user, name },
+// Partial update
+store.setState({ settings: { ...settings, theme: 'dark' } });
+
+// Computed update
+store.setState(state => ({
+  todos: [...state.todos, newTodo]
 }));
 ```
 
-## Actions
+### Selectors
 
-Actions are the only way to modify state in next-state. They are pure functions that describe state changes.
-
-### Synchronous Actions
+Selectors are pure functions that extract and compute data from the state:
 
 ```typescript
-const increment = createNextAction(() => (state) => ({
-  count: state.count + 1,
-}));
+// Basic selector
+const user = useNextState(state => state.user);
 
-// Usage
-increment();
+// Computed selector
+const completedTodos = useNextState(state => 
+  state.todos.filter(todo => todo.completed)
+);
+
+// Memoized selector
+const todoStats = useNextState(state => ({
+  total: state.todos.length,
+  completed: state.todos.filter(todo => todo.completed).length,
+  remaining: state.todos.filter(todo => !todo.completed).length
+}), Object.is);
 ```
 
-### Async Actions
+### Actions
+
+Actions are reusable functions that update the state:
 
 ```typescript
-const fetchUser = createNextAction((userId: string) => async (state) => {
-  // Set loading state
-  state.ui.isLoading = true;
+// Synchronous action
+const addTodo = (text: string) => 
+  store.setState(state => ({
+    todos: [...state.todos, { id: Date.now(), text, completed: false }]
+  }));
 
-  try {
-    const user = await api.getUser(userId);
-    return {
-      user,
-      ui: { ...state.ui, isLoading: false },
-    };
-  } catch (error) {
-    return {
-      ui: {
-        ...state.ui,
-        isLoading: false,
-        error: error.message,
-      },
-    };
+// Async action
+const fetchUser = async (id: string) => {
+  const user = await api.getUser(id);
+  store.setState({ user });
+};
+
+// Action with optimistic update
+const toggleTodo = (id: string) => {
+  // Optimistic update
+  store.setState(state => ({
+    todos: state.todos.map(todo =>
+      todo.id === id ? { ...todo, completed: !todo.completed } : todo
+    )
+  }));
+
+  // Server sync
+  api.updateTodo(id).catch(() => {
+    // Rollback on error
+    store.setState(state => ({
+      todos: state.todos.map(todo =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      )
+    }));
+  });
+};
+```
+
+### Middleware
+
+Middleware intercepts state updates for side effects:
+
+```typescript
+const loggingMiddleware = {
+  id: 'logger',
+  before: (update) => {
+    console.log('Before update:', update);
+    return update;
+  },
+  after: (state) => {
+    console.log('After update:', state);
   }
-});
-
-// Usage
-await fetchUser("123");
-```
-
-## Selectors
-
-Selectors efficiently access and derive state data. They automatically optimize re-renders.
-
-### Basic Selectors
-
-```typescript
-function UserProfile() {
-  // Only re-renders when user changes
-  const user = useNextState((state) => state.user);
-
-  // Only re-renders when theme changes
-  const theme = useNextState((state) => state.settings.theme);
-
-  return <div className={theme}>{user?.name}</div>;
-}
-```
-
-### Computed Selectors
-
-```typescript
-function TodoList() {
-  // Only re-renders when completed todos count changes
-  const completedCount = useNextState(
-    (state) => state.todos.filter((todo) => todo.completed).length
-  );
-
-  // Only re-renders when active todos change
-  const activeTodos = useNextState((state) =>
-    state.todos.filter((todo) => !todo.completed)
-  );
-
-  return (
-    <div>
-      <h2>Active Todos ({activeTodos.length})</h2>
-      <p>Completed: {completedCount}</p>
-    </div>
-  );
-}
-```
-
-## Middleware
-
-Middleware intercepts state changes for side effects, logging, or modifications.
-
-```typescript
-// Logger middleware
-const loggerMiddleware = {
-  onStateChange: (prev, next) => {
-    console.group("State Update");
-    console.log("Previous:", prev);
-    console.log("Next:", next);
-    console.groupEnd();
-  },
 };
 
-// Analytics middleware
-const analyticsMiddleware = {
-  onStateChange: (prev, next) => {
-    if (prev.user !== next.user) {
-      analytics.track("user_changed", {
-        from: prev.user?.id,
-        to: next.user?.id,
-      });
-    }
-  },
-};
+store.use(loggingMiddleware);
+```
 
-// Add middleware
-const { middlewareRegistry } = createNextState({
+### Persistence
+
+State can be persisted with automatic migration support:
+
+```typescript
+const store = create({
   initialState,
   options: {
-    middleware: [loggerMiddleware, analyticsMiddleware],
-  },
+    storage: {
+      key: 'app-state',
+      version: 2,
+      migrations: {
+        1: (oldState) => ({
+          ...oldState,
+          newField: 'default'
+        })
+      }
+    }
+  }
 });
 ```
 
-## Server Integration
+### Server Integration
 
-next-state seamlessly integrates with Next.js server components and actions.
-
-### Server Components
+Server components are supported with automatic state hydration:
 
 ```typescript
-// app/page.tsx
-async function Page() {
-  const initialData = await fetchInitialData();
+// Server component
+function TodoList() {
+  const [todos, setTodos] = useServerState(serverState);
+  
+  // Optimistic updates
+  const addTodo = (text: string) => {
+    setTodos(state => ({
+      todos: [...state.todos, { id: 'temp', text }]
+    }));
+  };
 
   return (
-    <Provider initialData={initialData}>
-      <Content />
-    </Provider>
+    <ul>
+      {todos.map(todo => (
+        <TodoItem key={todo.id} todo={todo} />
+      ))}
+    </ul>
   );
 }
-```
 
-### Server Actions
-
-```typescript
-const fetchData = withNextServer("fetch-data", async () => {
-  const data = await db.query();
-  return { data };
-});
-
-// Usage in component
-function DataComponent() {
-  const data = useNextState((state) => state.data);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  return <div>{/* Render data */}</div>;
-}
+// Wrap with server state
+export default withServerState(TodoList, config);
 ```
 
 ## Best Practices
 
-1. **Keep State Minimal**
+### State Structure
 
+1. **Keep State Normalized**
    ```typescript
-   // ❌ Don't store derived data
-   const state = {
-     todos: [],
-     completedTodos: [], // Derived data
-     activeCount: 0, // Derived data
-   };
+   // Good
+   interface State {
+     users: { [id: string]: User };
+     todos: { [id: string]: Todo };
+     userTodos: { [userId: string]: string[] };
+   }
 
-   // ✅ Use selectors for derived data
-   const completedTodos = useNextState((state) =>
-     state.todos.filter((todo) => todo.completed)
-   );
-   ```
-
-2. **Organize Actions by Feature**
-
-   ```typescript
-   // users/actions.ts
-   export const userActions = {
-     update: createNextAction(...),
-     delete: createNextAction(...),
-     fetch: createNextAction(...)
-   };
-   ```
-
-3. **Use TypeScript**
-   ```typescript
-   // Define strict types for your state
-   interface AppState {
-     user: User | null;
-     settings: Settings;
-     ui: UIState;
+   // Avoid
+   interface State {
+     users: Array<{
+       user: User;
+       todos: Todo[];
+     }>;
    }
    ```
 
-## Next Steps
+2. **Use Computed Data**
+   ```typescript
+   // Compute in selectors
+   const userTodos = useNextState(state => {
+     const user = state.users[userId];
+     return state.userTodos[user.id]
+       .map(id => state.todos[id]);
+   });
 
-- Learn about [Advanced Patterns](../advanced/patterns.md)
-- Explore [Performance Optimization](../advanced/performance.md)
-- Set up [Testing](../guides/testing.md)
+   // Avoid storing computed data
+   const userTodos = useNextState(state => 
+     state.computedUserTodos[userId]
+   );
+   ```
 
-## Need Help?
+3. **Type Everything**
+   ```typescript
+   interface Todo {
+     id: string;
+     text: string;
+     completed: boolean;
+     userId: string;
+   }
 
-- Join our [Discord](https://discord.gg/next-state)
-- Check [GitHub Issues](https://github.com/raheesahmed/next-state/issues)
-- Read our [FAQ](../faq.md)
+   type TodoState = {
+     todos: Record<string, Todo>;
+     loading: boolean;
+     error: Error | null;
+   };
+   ```
+
+### Performance
+
+1. **Use Selectors Wisely**
+   ```typescript
+   // Good: Specific selection
+   const userName = useNextState(state => state.user.name);
+
+   // Avoid: Over-selection
+   const user = useNextState(state => state.user);
+   ```
+
+2. **Batch Updates**
+   ```typescript
+   // Good: Single update
+   store.setState({
+     user: newUser,
+     settings: newSettings,
+     lastUpdated: Date.now()
+   });
+
+   // Avoid: Multiple updates
+   store.setState({ user: newUser });
+   store.setState({ settings: newSettings });
+   store.setState({ lastUpdated: Date.now() });
+   ```
+
+3. **Memoize Complex Computations**
+   ```typescript
+   const expensiveComputation = useNextState(
+     state => computeExpensiveValue(state),
+     (prev, next) => prev.id === next.id
+   );
+   ```
+
+### Error Handling
+
+1. **Use Type-Safe Errors**
+   ```typescript
+   throw new NextStateError({
+     code: 'VALIDATION_ERROR',
+     message: 'Invalid state update',
+     details: { update }
+   });
+   ```
+
+2. **Implement Error Boundaries**
+   ```typescript
+   <NextStateErrorBoundary
+     fallback={<ErrorMessage />}
+     onError={(error) => {
+       logger.error('State error:', error);
+     }}
+   >
+     <App />
+   </NextStateErrorBoundary>
+   ```
+
+## Common Patterns
+
+### Feature State
+
+```typescript
+// feature/state.ts
+interface FeatureState {
+  data: Data | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+const initialState: FeatureState = {
+  data: null,
+  loading: false,
+  error: null
+};
+
+export const featureStore = create({
+  initialState,
+  options: {
+    devTools: true
+  }
+});
+```
+
+### Async Data Fetching
+
+```typescript
+function useAsyncData<T>(
+  fetcher: () => Promise<T>
+) {
+  const [state, setState] = useState<{
+    data: T | null;
+    loading: boolean;
+    error: Error | null;
+  }>({
+    data: null,
+    loading: true,
+    error: null
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetch() {
+      try {
+        const data = await fetcher();
+        if (mounted) {
+          setState({ data, loading: false, error: null });
+        }
+      } catch (error) {
+        if (mounted) {
+          setState({ data: null, loading: false, error });
+        }
+      }
+    }
+
+    fetch();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetcher]);
+
+  return state;
+}
+```
+
+### Form State
+
+```typescript
+function useFormState<T extends object>(initialState: T) {
+  const [values, setValues] = useState(initialState);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<keyof T, boolean>>>({});
+
+  const handleChange = (field: keyof T) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setValues(prev => ({
+      ...prev,
+      [field]: event.target.value
+    }));
+  };
+
+  const handleBlur = (field: keyof T) => () => {
+    setTouched(prev => ({
+      ...prev,
+      [field]: true
+    }));
+  };
+
+  return {
+    values,
+    errors,
+    touched,
+    handleChange,
+    handleBlur
+  };
+}
+```
+
+## Advanced Topics
+
+For more advanced usage, check out:
+- [Middleware Guide](../guides/middleware.md)
+- [Testing Guide](../guides/testing.md)
+- [Performance Guide](../guides/performance.md)
+- [Server Integration](../guides/server.md)

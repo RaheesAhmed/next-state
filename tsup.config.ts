@@ -5,13 +5,19 @@ export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
   dts: true,
-  splitting: false,
-  sourcemap: true,
+  splitting: true,
   clean: true,
-  treeshake: true,
   minify: true,
+  treeshake: {
+    preset: 'smallest',
+  },
   external: ['react', 'next'],
-  noExternal: ['react'],
-  target: 'es2020',
-  platform: 'browser',
+  esbuildOptions(options) {
+    options.bundle = true;
+    options.minify = true;
+    options.platform = 'browser';
+    options.target = 'es2020';
+    options.treeShaking = true;
+  },
+  sourcemap: true,
 });

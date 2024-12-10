@@ -1,362 +1,400 @@
 # Testing Guide
 
-Learn how to effectively test your next-state implementations.
+This guide covers essential testing patterns for Next State applications.
 
-## Table of Contents
+## Test Setup
 
-- [Setup](#setup)
-- [Unit Testing](#unit-testing)
-- [Integration Testing](#integration-testing)
-- [Testing Patterns](#testing-patterns)
-- [Testing Utilities](#testing-utilities)
-- [Common Scenarios](#common-scenarios)
-
-## Setup
-
-### Test Environment Setup
+### Basic Configuration
 
 ```typescript
-// jest.config.js
-module.exports = {
-  preset: "ts-jest",
-  testEnvironment: "jsdom",
-  setupFilesAfterEnv: ["@testing-library/jest-dom"],
-  moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/src/$1",
-  },
+import { create } from 'next-state';
+import { render, act } from '@testing-library/react';
+
+interface TestState {
+  count: number;
+  user: User | null;
+  todos: Todo[];
+}
+
+const createTestStore = (initialState?: Partial<TestState>) => {
+  const defaultState: TestState = {
+    count: 0,
+    user: null,
+    todos: [],
+    ...initialState
+  };
+
+  return create({
+    initialState: defaultState,
+    options: { devTools: false }
+  });
+};
+```
+
+### Test Utilities
+
+```typescript
+// State change tracker
+const createStateTracker = <T>(store: Store<T>) => {
+  const states: T[] = [];
+  store.subscribe(state => states.push(state));
+  return {
+    getStates: () => states,
+    getLastState: () => states[states.length - 1],
+    clear: () => states.length = 0
+  };
 };
 
-// test-utils.ts
-import { render } from "@testing-library/react";
-import { createNextState } from "next-state";
-
-export function createTestState<T extends object>(initialState: T) {
-  const state = createNextState({ initialState });
-
+// Render counter
+const createRenderCounter = () => {
+  let renders = 0;
   return {
-    ...state,
-    getState: () => state.useNextState((s) => s),
+    Component: () => { renders++; return null; },
+    getRenders: () => renders
   };
-}
+};
 ```
 
-## Unit Testing
+## Unit Tests
 
-### Testing Selectors
-
-```typescript
-describe("Selectors", () => {
-  const { useNextState, Provider } = createTestState({
-    todos: [
-      { id: 1, text: "Test", completed: false },
-      { id: 2, text: "Test 2", completed: true },
-    ],
-  });
-
-  it("should select completed todos", () => {
-    const { result } = renderHook(
-      () => useNextState((state) => state.todos.filter((t) => t.completed)),
-      { wrapper: Provider }
-    );
-
-    expect(result.current).toHaveLength(1);
-    expect(result.current[0].id).toBe(2);
-  });
-});
-```
-
-### Testing Actions
+### State Updates
 
 ```typescript
-describe("Todo Actions", () => {
-  const { createNextAction, useNextState, Provider } = createTestState({
-    todos: [],
-  });
+describe('State Management', () => {
+  let store: Store<TestState>;
 
-  const addTodo = createNextAction((text: string) => (state) => ({
-    todos: [...state.todos, { id: Date.now(), text, completed: false }],
-  }));
-
-  it("should add new todo", async () => {
-    const { result } = renderHook(() => useNextState((state) => state.todos), {
-      wrapper: Provider,
-    });
-
-    await act(async () => {
-      await addTodo("New Todo");
-    });
-
-    expect(result.current).toHaveLength(1);
-    expect(result.current[0].text).toBe("New Todo");
-  });
-});
-```
-
-### Testing Middleware
-
-```typescript
-describe("Analytics Middleware", () => {
-  const mockAnalytics = {
-    track: jest.fn(),
-  };
-
-  const analyticsMiddleware = {
-    onStateChange: (prev: any, next: any) => {
-      if (prev.user !== next.user) {
-        mockAnalytics.track("user_changed", next.user);
-      }
-    },
-  };
-
-  const { Provider, createNextAction } = createTestState(
-    {
-      user: null,
-    },
-    {
-      middleware: [analyticsMiddleware],
-    }
-  );
-
-  it("should track user changes", async () => {
-    const setUser = createNextAction((user: User) => () => ({ user }));
-
-    await act(async () => {
-      await setUser({ id: 1, name: "Test" });
-    });
-
-    expect(mockAnalytics.track).toHaveBeenCalledWith("user_changed", {
-      id: 1,
-      name: "Test",
-    });
-  });
-});
-```
-
-## Integration Testing
-
-### Testing Components with State
-
-```typescript
-describe("TodoList Component", () => {
-  const { Provider } = createTestState({
-    todos: [],
-    filter: "all",
-  });
-
-  it("should render todos and handle updates", async () => {
-    const { getByText, getByRole } = render(
-      <Provider>
-        <TodoList />
-      </Provider>
-    );
-
-    // Add todo
-    const input = getByRole("textbox");
-    const addButton = getByText("Add");
-
-    await userEvent.type(input, "New Todo");
-    await userEvent.click(addButton);
-
-    // Verify todo was added
-    expect(getByText("New Todo")).toBeInTheDocument();
-
-    // Toggle todo
-    const checkbox = getByRole("checkbox");
-    await userEvent.click(checkbox);
-
-    // Verify todo was completed
-    expect(checkbox).toBeChecked();
-  });
-});
-```
-
-### Testing Async Operations
-
-```typescript
-describe("User Authentication", () => {
-  const mockApi = {
-    login: jest.fn(),
-  };
-
-  const { Provider, createNextAction } = createTestState({
-    user: null,
-    loading: false,
-    error: null,
-  });
-
-  const login = createNextAction(
-    (credentials: Credentials) => async (state) => {
-      state.loading = true;
-      try {
-        const user = await mockApi.login(credentials);
-        return { user, loading: false, error: null };
-      } catch (error) {
-        return { loading: false, error: error.message };
-      }
-    }
-  );
-
-  it("should handle successful login", async () => {
-    mockApi.login.mockResolvedValueOnce({ id: 1, name: "Test" });
-
-    const { result } = renderHook(() => useNextState((s) => s), {
-      wrapper: Provider,
-    });
-
-    await act(async () => {
-      await login({ email: "test@test.com", password: "password" });
-    });
-
-    expect(result.current.user).toEqual({ id: 1, name: "Test" });
-    expect(result.current.loading).toBe(false);
-    expect(result.current.error).toBeNull();
-  });
-
-  it("should handle login failure", async () => {
-    mockApi.login.mockRejectedValueOnce(new Error("Invalid credentials"));
-
-    const { result } = renderHook(() => useNextState((s) => s), {
-      wrapper: Provider,
-    });
-
-    await act(async () => {
-      await login({ email: "test@test.com", password: "wrong" });
-    });
-
-    expect(result.current.user).toBeNull();
-    expect(result.current.loading).toBe(false);
-    expect(result.current.error).toBe("Invalid credentials");
-  });
-});
-```
-
-## Testing Patterns
-
-### Testing Persistence
-
-```typescript
-describe("State Persistence", () => {
   beforeEach(() => {
-    localStorage.clear();
+    store = createTestStore();
   });
 
-  it("should persist and rehydrate state", () => {
-    const { Provider } = createTestState(
-      {
-        counter: 0,
-      },
-      {
-        persist: {
-          storage: "localStorage",
-          key: "test-state",
-        },
-      }
-    );
-
-    // First render
-    const { result, rerender } = renderHook(
-      () => useNextState((s) => s.counter),
-      { wrapper: Provider }
-    );
-
+  test('basic state update', () => {
     act(() => {
-      // Update state
-      result.current.increment();
+      store.setState({ count: 1 });
+    });
+    expect(store.getState().count).toBe(1);
+  });
+
+  test('computed update', () => {
+    act(() => {
+      store.setState(state => ({
+        count: state.count + 1
+      }));
+    });
+    expect(store.getState().count).toBe(1);
+  });
+
+  test('batch updates', () => {
+    const tracker = createStateTracker(store);
+    
+    act(() => {
+      store.setState({ count: 1 });
+      store.setState({ count: 2 });
+      store.setState({ count: 3 });
     });
 
-    // Unmount and remount
-    rerender();
-
-    // State should be rehydrated
-    expect(result.current).toBe(1);
+    expect(tracker.getStates().length).toBe(1);
+    expect(tracker.getLastState().count).toBe(3);
   });
 });
 ```
 
-### Testing DevTools
+### Selectors
 
 ```typescript
-describe("DevTools", () => {
-  it("should track state history", () => {
-    const { Provider, useNextState } = createTestState(
-      {
-        count: 0,
-      },
-      {
-        devTools: true,
-      }
+describe('Selectors', () => {
+  test('basic selection', () => {
+    const store = createTestStore({
+      todos: [{ id: '1', completed: false }]
+    });
+
+    const TestComponent = () => {
+      const completed = useNextState(state => 
+        state.todos.filter(t => t.completed)
+      );
+      return <div>{completed.length}</div>;
+    };
+
+    const { container } = render(
+      <StateProvider store={store}>
+        <TestComponent />
+      </StateProvider>
     );
 
-    const { result } = renderHook(
-      () => {
-        const state = useNextState((s) => s);
-        const devTools = useDevTools();
-        return { state, devTools };
-      },
-      { wrapper: Provider }
+    expect(container.textContent).toBe('0');
+  });
+
+  test('selector memoization', () => {
+    const store = createTestStore();
+    const selector = jest.fn(state => state.count);
+    const counter = createRenderCounter();
+
+    const TestComponent = () => {
+      useNextState(selector);
+      return <counter.Component />;
+    };
+
+    render(
+      <StateProvider store={store}>
+        <TestComponent />
+      </StateProvider>
     );
 
     act(() => {
-      result.current.state.increment();
+      store.setState({ user: null }); // Unrelated update
     });
 
-    expect(result.current.devTools.history).toHaveLength(2);
-    expect(result.current.devTools.history[1].state.count).toBe(1);
+    expect(selector).toHaveBeenCalledTimes(1);
+    expect(counter.getRenders()).toBe(1);
   });
 });
 ```
 
-## Testing Utilities
+### Middleware
 
 ```typescript
-// test-utils.ts
-export function createMockMiddleware() {
-  return {
-    onStateChange: jest.fn(),
-    onError: jest.fn(),
-    onInit: jest.fn(),
-  };
-}
+describe('Middleware', () => {
+  test('middleware execution', () => {
+    const middleware = {
+      id: 'test',
+      before: jest.fn(update => update),
+      after: jest.fn()
+    };
 
-export function waitForStateUpdate(callback: () => void) {
-  return act(async () => {
-    await callback();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const store = createTestStore({
+      options: { middleware: [middleware] }
+    });
+
+    act(() => {
+      store.setState({ count: 1 });
+    });
+
+    expect(middleware.before).toHaveBeenCalled();
+    expect(middleware.after).toHaveBeenCalled();
   });
-}
-```
 
-## Common Scenarios
+  test('middleware error handling', () => {
+    const errorMiddleware = {
+      id: 'error',
+      before: () => {
+        throw new Error('Test error');
+      }
+    };
 
-### Testing Form State
+    const store = createTestStore({
+      options: { middleware: [errorMiddleware] }
+    });
 
-```typescript
-describe("Form State", () => {
-  it("should handle form updates and validation", async () => {
-    const { result } = renderHook(() => {
-      const form = useFormState({
-        initialValues: { email: "", password: "" },
-        validate: (values) => {
-          const errors: Record<string, string> = {};
-          if (!values.email) errors.email = "Required";
-          return errors;
-        },
+    expect(() => {
+      act(() => {
+        store.setState({ count: 1 });
       });
-      return form;
+    }).toThrow('Test error');
+  });
+});
+```
+
+## Integration Tests
+
+### Component Integration
+
+```typescript
+describe('Component Integration', () => {
+  test('component updates', () => {
+    const store = createTestStore();
+
+    const Counter = () => {
+      const count = useNextState(state => state.count);
+      return (
+        <button onClick={() => store.setState({ count: count + 1 })}>
+          Count: {count}
+        </button>
+      );
+    };
+
+    const { getByText } = render(
+      <StateProvider store={store}>
+        <Counter />
+      </StateProvider>
+    );
+
+    act(() => {
+      getByText(/Count: 0/).click();
     });
+
+    expect(getByText(/Count: 1/)).toBeInTheDocument();
+  });
+
+  test('multiple components', () => {
+    const store = createTestStore();
+    const counter = createRenderCounter();
+
+    const Display = () => {
+      const count = useNextState(state => state.count);
+      counter.Component();
+      return <div>Count: {count}</div>;
+    };
+
+    const Controls = () => (
+      <button onClick={() => store.setState({ count: 1 })}>
+        Update
+      </button>
+    );
+
+    const { getByText } = render(
+      <StateProvider store={store}>
+        <Display />
+        <Controls />
+      </StateProvider>
+    );
+
+    act(() => {
+      getByText('Update').click();
+    });
+
+    expect(counter.getRenders()).toBe(2); // Initial + update
+  });
+});
+```
+
+### Async Operations
+
+```typescript
+describe('Async Operations', () => {
+  test('async actions', async () => {
+    const store = createTestStore();
+    
+    const fetchUser = async (id: string) => {
+      const user = await api.getUser(id);
+      store.setState({ user });
+    };
 
     await act(async () => {
-      await result.current.setFieldValue("email", "test@test.com");
+      await fetchUser('1');
     });
 
-    expect(result.current.values.email).toBe("test@test.com");
-    expect(result.current.errors.email).toBeUndefined();
+    expect(store.getState().user).toEqual({
+      id: '1',
+      name: 'Test'
+    });
+  });
+
+  test('optimistic updates', async () => {
+    const store = createTestStore({
+      todos: [{ id: '1', completed: false }]
+    });
+
+    const toggleTodo = async (id: string) => {
+      // Optimistic update
+      store.setState(state => ({
+        todos: state.todos.map(todo =>
+          todo.id === id
+            ? { ...todo, completed: !todo.completed }
+            : todo
+        )
+      }));
+
+      try {
+        await api.updateTodo(id);
+      } catch {
+        // Rollback
+        store.setState(state => ({
+          todos: state.todos.map(todo =>
+            todo.id === id
+              ? { ...todo, completed: !todo.completed }
+              : todo
+          )
+        }));
+      }
+    };
+
+    await act(async () => {
+      await toggleTodo('1');
+    });
+
+    expect(store.getState().todos[0].completed).toBe(true);
   });
 });
 ```
 
-## Next Steps
+## Performance Tests
 
-- Explore [Performance Testing](../advanced/performance.md)
-- Learn about [Error Handling](../guides/error-handling.md)
-- Check out [Testing Examples](../examples/testing/README.md)
+```typescript
+describe('Performance', () => {
+  test('render optimization', () => {
+    const store = createTestStore();
+    const counter = createRenderCounter();
+
+    const TestComponent = () => {
+      useNextState(state => state.count);
+      return <counter.Component />;
+    };
+
+    render(
+      <StateProvider store={store}>
+        <TestComponent />
+      </StateProvider>
+    );
+
+    act(() => {
+      store.setState({ user: null }); // Unrelated update
+    });
+
+    expect(counter.getRenders()).toBe(1); // Only initial render
+  });
+
+  test('batch performance', async () => {
+    const store = createTestStore();
+    const tracker = createStateTracker(store);
+
+    act(() => {
+      for (let i = 0; i < 100; i++) {
+        store.setState({ count: i });
+      }
+    });
+
+    expect(tracker.getStates().length).toBe(1); // Single batch update
+    expect(tracker.getLastState().count).toBe(99);
+  });
+});
+```
+
+## Best Practices
+
+1. **Isolate Tests**
+```typescript
+beforeEach(() => {
+  jest.clearAllMocks();
+  store = createTestStore();
+});
+```
+
+2. **Use Act**
+```typescript
+await act(async () => {
+  await asyncOperation();
+});
+```
+
+3. **Test Edge Cases**
+```typescript
+test('edge cases', () => {
+  expect(() => {
+    store.setState(null as any);
+  }).toThrow();
+});
+```
+
+4. **Clean Up**
+```typescript
+afterEach(() => {
+  cleanup();
+  store.destroy();
+});
+```
+
+5. **Mock Heavy Operations**
+```typescript
+jest.mock('./api', () => ({
+  fetchData: jest.fn()
+}));
+```

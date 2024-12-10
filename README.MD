@@ -1,11 +1,13 @@
-# next-state
+# nextjs-state
 
 <div align="center">
   <h3>Type-safe state management built for Next.js</h3>
 </div>
 
-![License](https://img.shields.io/npm/l/next-state)
-![Types](https://img.shields.io/npm/types/next-state)
+![License](https://img.shields.io/npm/l/nextjs-state)
+![Types](https://img.shields.io/npm/types/nextjs-state)
+![npm](https://img.shields.io/npm/v/nextjs-state)
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/nextjs-state)
 [![GitHub issues](https://img.shields.io/github/issues/RaheesAhmed/next-state)](https://github.com/RaheesAhmed/next-state/issues)
 [![GitHub stars](https://img.shields.io/github/stars/RaheesAhmed/next-state)](https://github.com/RaheesAhmed/next-state/stargazers)
 
@@ -21,18 +23,18 @@
 ## Installation
 
 ```bash
-npm install next-state
+npm install nextjs-state
 # or
-yarn add next-state
+yarn add nextjs-state
 # or
-pnpm add next-state
+pnpm add nextjs-state
 ```
 
 ## Quick Start
 
 ```typescript
 // state/index.ts
-import { createNextState } from 'next-state';
+import { createNextState } from 'nextjs-state';
 
 interface AppState {
   count: number;
@@ -89,7 +91,7 @@ export function Counter() {
 
 ### State Management
 
-next-state uses a simple and intuitive state management pattern:
+nextjs-state uses a simple and intuitive state management pattern:
 
 1. Define your state with TypeScript interfaces
 2. Create a state instance with `createNextState`

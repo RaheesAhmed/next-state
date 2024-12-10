@@ -1,4 +1,4 @@
-import type { NextStateStorage } from './types';
+import type { NextStateStorage } from '../types/types';
 
 export function createStorage<T>(key: string = 'next-state'): NextStateStorage<T> {
   return {

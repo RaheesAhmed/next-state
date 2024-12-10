@@ -1,6 +1,6 @@
 # Contributing to next-state
 
-We love your input! We want to make contributing to next-state as easy and transparent as possible, whether it's:
+We love your input! We want to make contributing to nextjs-state as easy and transparent as possible, whether it's:
 
 - Reporting a bug
 - Discussing the current state of the code
@@ -48,7 +48,7 @@ We use GitHub issues to track public bugs. Report a bug by [opening a new issue]
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/RaheesAhmed/next-state.git
+   git clone https://github.com/RaheesAhmed/nextjs-state.git
    ```
 
 2. Install dependencies:
