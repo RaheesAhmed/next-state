@@ -1,5 +1,5 @@
 {
-  "name": "next-state",
+  "name": "nextstate",
   "version": "1.0.0",
   "description": "Type-safe, server-aware state management for Next.js applications",
   "main": "dist/index.js",
@@ -60,5 +60,8 @@
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "vitest": "^1.0.4"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
