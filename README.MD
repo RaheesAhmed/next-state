@@ -1,24 +1,19 @@
 # nextjs-state
 
-<div align="center">
-  <h3>Type-safe state management built for Next.js</h3>
-</div>
+Type-safe state management for Next.js and React applications. Simple, lightweight, and performant.
 
-![License](https://img.shields.io/npm/l/nextjs-state)
-![Types](https://img.shields.io/npm/types/nextjs-state)
-![npm](https://img.shields.io/npm/v/nextjs-state)
-![npm bundle size](https://img.shields.io/bundlephobia/minzip/nextjs-state)
-[![GitHub issues](https://img.shields.io/github/issues/RaheesAhmed/next-state)](https://github.com/RaheesAhmed/next-state/issues)
-[![GitHub stars](https://img.shields.io/github/stars/RaheesAhmed/next-state)](https://github.com/RaheesAhmed/next-state/stargazers)
+[![npm version](https://badge.fury.io/js/nextjs-state.svg)](https://badge.fury.io/js/nextjs-state)
+[![Bundle Size](https://img.shields.io/bundlephobia/minzip/nextjs-state)](https://bundlephobia.com/package/nextjs-state)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- 🎯 **Type-Safe**: Full TypeScript support with zero configuration
-- 🚀 **Simple API**: Intuitive hooks-based API
-- ⚡ **Lightweight**: ~4KB minified + gzipped
-- 💾 **Built-in Persistence**: Optional localStorage persistence
-- 🔄 **Middleware System**: Extensible with custom middleware
-- 🛠️ **Developer Tools**: Time-travel debugging (coming soon)
+- 🎯 **Type-safe**: Full TypeScript support out of the box
+- ⚡ **Lightweight**: Less than 1KB minified and gzipped
+- 🔄 **Middleware**: Built-in logging and persistence middleware
+- 💾 **Persistence**: Easy state persistence with localStorage
+- 🎨 **Selectors**: Efficient state access with memoization
+- 📦 **Zero dependencies**: Only React as a peer dependency
 
 ## Installation
 
@@ -32,192 +27,311 @@ pnpm add nextjs-state
 
 ## Quick Start
 
-```typescript
-// state/index.ts
+```tsx
 import { createNextState } from 'nextjs-state';
 
-interface AppState {
+// 1. Define your state type
+interface CounterState {
   count: number;
-  lastUpdated: string;
 }
 
-export const { Provider, useNextState } = createNextState<AppState>({
-  initialState: {
-    count: 0,
-    lastUpdated: new Date().toISOString(),
-  },
+// 2. Create your state
+const { useNextState } = createNextState<CounterState>({
+  initialState: { count: 0 },
 });
 
-// app/layout.tsx
-import { Provider } from './state';
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html>
-      <body>
-        <Provider>{children}</Provider>
-      </body>
-    </html>
-  );
-}
-
-// app/components/Counter.tsx
-import { useNextState } from '../state';
-
-export function Counter() {
-  const { state, setState } = useNextState((state) => ({
-    count: state.count,
-    lastUpdated: state.lastUpdated,
-  }));
-
-  const increment = () => {
-    setState({
-      count: state.count + 1,
-      lastUpdated: new Date().toISOString(),
-    });
-  };
+// 3. Use in your components
+function Counter() {
+  const { state, setState } = useNextState();
 
   return (
     <div>
       <p>Count: {state.count}</p>
-      <p>Last Updated: {new Date(state.lastUpdated).toLocaleString()}</p>
-      <button onClick={increment}>Increment</button>
+      <button onClick={() => setState((prev) => ({ count: prev.count + 1 }))}>Increment</button>
     </div>
   );
 }
 ```
 
-## Core Concepts
+## Complete Example
 
-### State Management
+Here's a comprehensive example showcasing all features including state management, middleware, theming, and UI components:
 
-nextjs-state uses a simple and intuitive state management pattern:
+```tsx
+'use client';
 
-1. Define your state with TypeScript interfaces
-2. Create a state instance with `createNextState`
-3. Wrap your app with the `Provider`
-4. Use `useNextState` hook to access and update state
+import {
+  createNextState,
+  createLoggingMiddleware,
+  createPersistenceMiddleware,
+} from 'nextjs-state';
 
-### Type Safety
-
-```typescript
-interface User {
-  id: string;
-  name: string;
-  email: string;
+// Define complete app state
+interface AppState {
+  counter: {
+    value: number;
+    history: number[];
+    lastUpdated: string;
+  };
+  todos: {
+    items: Array<{
+      id: number;
+      text: string;
+      completed: boolean;
+      priority: 'low' | 'medium' | 'high';
+    }>;
+    filter: 'all' | 'active' | 'completed';
+  };
+  theme: {
+    mode: 'light' | 'dark';
+    fontSize: 'small' | 'medium' | 'large';
+    accentColor: string;
+  };
+  user: {
+    preferences: {
+      notifications: boolean;
+      autoSave: boolean;
+    };
+    lastActivity: string;
+  };
 }
+
+// Create middleware stack
+const loggingMiddleware = createLoggingMiddleware<AppState>();
+const persistenceMiddleware = createPersistenceMiddleware<AppState>('app-state');
+
+// Custom analytics middleware
+const analyticsMiddleware = (state: AppState, nextState: AppState) => {
+  if (state.counter.value !== nextState.counter.value) {
+    console.log('Analytics: Counter changed', {
+      from: state.counter.value,
+      to: nextState.counter.value,
+    });
+  }
+  return nextState;
+};
+
+// Custom validation middleware
+const validationMiddleware = (state: AppState, nextState: AppState) => {
+  if (nextState.counter.value < 0) {
+    console.warn('Validation: Negative counter values not allowed');
+    return state;
+  }
+  return nextState;
+};
+
+// Initialize state
+const { useNextState } = createNextState<AppState>({
+  initialState: {
+    counter: {
+      value: 0,
+      history: [],
+      lastUpdated: new Date().toISOString(),
+    },
+    todos: {
+      items: [],
+      filter: 'all',
+    },
+    theme: {
+      mode: 'light',
+      fontSize: 'medium',
+      accentColor: '#3b82f6',
+    },
+    user: {
+      preferences: {
+        notifications: true,
+        autoSave: true,
+      },
+      lastActivity: new Date().toISOString(),
+    },
+  },
+  middleware: [loggingMiddleware, validationMiddleware, analyticsMiddleware, persistenceMiddleware],
+});
+
+// Action creators
+const actions = {
+  counter: {
+    increment: (state: AppState) => ({
+      ...state,
+      counter: {
+        value: state.counter.value + 1,
+        history: [...state.counter.history, state.counter.value],
+        lastUpdated: new Date().toISOString(),
+      },
+    }),
+  },
+  theme: {
+    toggleMode: (state: AppState) => ({
+      ...state,
+      theme: {
+        ...state.theme,
+        mode: state.theme.mode === 'light' ? 'dark' : 'light',
+      },
+    }),
+  },
+  // ... more actions
+};
+
+// Example component
+function Counter() {
+  const { state, setState } = useNextState();
+
+  return (
+    <div className={state.theme.mode === 'dark' ? 'bg-gray-800' : 'bg-white'}>
+      <h2>Counter: {state.counter.value}</h2>
+      <button onClick={() => setState(actions.counter.increment)}>Increment</button>
+      <div>History: {state.counter.history.join(', ')}</div>
+    </div>
+  );
+}
+```
+
+For a complete working example with all features and beautiful UI components, check out our [demo repository](https://github.com/yourusername/nextjs-state-demo).
+
+## Advanced Usage
+
+### Using with Next.js App Router
+
+```tsx
+// app/providers.tsx
+'use client';
+
+import { createNextState } from 'nextjs-state';
 
 interface AppState {
-  user: User | null;
   theme: 'light' | 'dark';
+  user: {
+    name: string;
+    preferences: Record<string, any>;
+  } | null;
 }
 
-// Type errors caught at compile time
-const wrongUpdate = setState({
-  user: {
-    id: 123, // Error: Type 'number' is not assignable to type 'string'
-    name: 'John', // Error: Missing property 'email'
-  },
-});
-```
-
-### State Updates
-
-```typescript
-// Simple update
-setState({ count: count + 1 });
-
-// Update with previous state
-setState((prev) => ({
-  count: prev.count + 1,
-}));
-
-// Async update
-const fetchUser = async (userId: string) => {
-  const user = await api.getUser(userId);
-  setState({ user });
-};
-```
-
-### Middleware
-
-```typescript
-const loggerMiddleware = {
-  id: 'logger',
-  onStateChange: (prev, next) => {
-    console.log('State updated:', { prev, next });
-  },
-  onError: (error) => {
-    console.error('State error:', error);
-  },
-};
-
-const { Provider } = createNextState({
-  initialState,
-  options: {
-    middleware: [loggerMiddleware],
-  },
-});
-```
-
-### Persistence
-
-State is automatically persisted to localStorage by default. You can access the storage API directly:
-
-```typescript
-const { Provider, useNextState } = createNextState({
+export const { useNextState } = createNextState<AppState>({
   initialState: {
-    count: 0,
+    theme: 'light',
+    user: null,
   },
 });
 
-// State will be automatically persisted to localStorage
+// app/layout.tsx
+import { Providers } from './providers';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
 ```
+
+### Using Selectors for Performance
+
+```tsx
+import { createNextState, useSelector } from 'nextjs-state';
+
+interface DeepState {
+  users: {
+    list: Array<{
+      id: number;
+      name: string;
+      settings: {
+        theme: string;
+        notifications: boolean;
+      };
+    }>;
+    selectedId: number | null;
+  };
+}
+
+const { useNextState } = createNextState<DeepState>({
+  initialState: {
+    users: {
+      list: [],
+      selectedId: null,
+    },
+  },
+});
+
+function SelectedUserSettings() {
+  const state = useNextState();
+  const selectedUser = useSelector(state, (s) =>
+    s.users.list.find((u) => u.id === s.users.selectedId)
+  );
+
+  if (!selectedUser) return <div>No user selected</div>;
+
+  return (
+    <div>
+      <h2>{selectedUser.name}'s Settings</h2>
+      <p>Theme: {selectedUser.settings.theme}</p>
+      <p>Notifications: {selectedUser.settings.notifications ? 'On' : 'Off'}</p>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **State Organization**
+
+   - Keep state minimal and focused
+   - Split large state into smaller, focused states
+   - Use TypeScript interfaces for better type safety
+
+2. **Performance**
+
+   - Use selectors for expensive computations
+   - Avoid storing derived state
+   - Split large components into smaller ones
+
+3. **Middleware Usage**
+   - Order middleware from most to least important
+   - Use middleware for cross-cutting concerns
+   - Keep middleware pure and side-effect free
 
 ## API Reference
 
 ### `createNextState<T>`
 
-Creates a new state instance with the provided configuration.
+Creates a new state instance.
 
-```typescript
-const { Provider, useNextState } = createNextState<AppState>({
-  initialState: {
-    // Your initial state
-  },
-  options?: {
-    middleware?: NextStateMiddleware<T>[];
-  },
-});
+```tsx
+function createNextState<T>(config: {
+  initialState: T;
+  middleware?: Array<(state: T, nextState: T) => T>;
+}): {
+  useNextState: () => {
+    state: T;
+    setState: (newState: T | ((prevState: T) => T)) => void;
+  };
+};
 ```
 
-### `useNextState`
+### `useSelector`
 
-Hook to access and update state.
+Creates a memoized selector.
 
-```typescript
-const { state, setState } = useNextState((state) => ({
-  // Select state properties
-}));
+```tsx
+function useSelector<T, S>(hook: NextStateHook<T>, selector: (state: T) => S): S;
 ```
 
-### `NextStateMiddleware`
+### Middleware Creators
 
-Interface for creating custom middleware.
+#### `createLoggingMiddleware`
 
-```typescript
-interface NextStateMiddleware<T> {
-  id?: string;
-  priority?: number;
-  onStateChange?: (prev: T, next: T) => void | Promise<void>;
-  onError?: (error: Error) => void;
-}
+```tsx
+function createLoggingMiddleware<T>(): (state: T, nextState: T) => T;
 ```
 
-## Contributing
+#### `createPersistenceMiddleware`
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+```tsx
+function createPersistenceMiddleware<T>(key: string): (state: T, nextState: T) => T;
+```
 
 ## License
 
-MIT © [Rahees Ahmed]
+MIT
