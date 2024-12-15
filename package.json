@@ -1,76 +1,51 @@
 {
-  "name": "nextjs-state",
-  "version": "1.0.0",
-  "description": "Type-safe, server-aware state management for Next.js applications",
+  "name": "next-state",
+  "version": "0.1.0",
+  "description": "Type-safe state management for Next.js applications",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "files": [
-    "dist",
-    "README.md"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest",
-    "lint": "eslint src/**/*.ts",
-    "prepublish": "pnpm build",
-    "size": "size-limit"
+    "test:watch": "vitest watch",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "prepare": "npm run build"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/RaheesAhmed/next-state.git"
-  },
-  "bugs": {
-    "url": "https://github.com/RaheesAhmed/next-state/issues"
-  },
-  "homepage": "https://github.com/RaheesAhmed/next-state#readme",
-  "peerDependencies": {
-    "next": ">=13",
-    "react": ">=18"
-  },
-  "keywords": [
-    "next",
-    "nextjs",
-    "state",
-    "react",
-    "state-management",
-    "typescript"
-  ],
-  "author": "Rahees Ahmed",
-  "license": "MIT",
   "dependencies": {
-    "@types/react": "^18.2.45"
+    "react": "^19.0.0"
   },
   "devDependencies": {
-    "@size-limit/preset-small-lib": "^11.0.1",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/react": "^14.1.2",
-    "@testing-library/user-event": "^14.5.1",
-    "@types/node": "^20.10.4",
-    "@types/react-dom": "^18.2.18",
-    "@typescript-eslint/eslint-plugin": "^6.14.0",
-    "@typescript-eslint/parser": "^6.14.0",
-    "eslint": "^8.55.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-react": "^7.33.2",
-    "jsdom": "^23.0.1",
-    "prettier": "^3.1.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "size-limit": "^11.0.1",
-    "tsup": "^8.0.1",
-    "typescript": "^5.3.3",
-    "vitest": "^1.0.4"
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^19.0.2",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "4 KB"
-    },
-    {
-      "path": "dist/index.mjs",
-      "limit": "4 KB"
-    }
-  ]
+  "peerDependencies": {
+    "next": ">=15.0.0",
+    "react": ">=19.0.0"
+  },
+  "keywords": [
+    "nextjs",
+    "state-management",
+    "typescript",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT"
 }

@@ -1,5 +1,4 @@
 import React from 'react';
-import { INextStateError } from './types/types';
 
 export class NextStateError extends Error {
   constructor(
@@ -12,18 +11,11 @@ export class NextStateError extends Error {
   }
 }
 
-interface ErrorBoundaryProps {
-  fallback?: React.ReactNode;
-  children: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: NextStateError;
-}
-
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+export class NextStateErrorBoundary extends React.Component<
+  { fallback?: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean; error?: NextStateError }
+> {
+  constructor(props: { fallback?: React.ReactNode; children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }

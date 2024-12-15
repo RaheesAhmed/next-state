@@ -1,5 +1,6 @@
-import { create } from "./core";
-import type { StateConfig, Action, Selector } from "./types/types";
+import { create } from '../core/core';
+import { create } from './core/core';
+import type { StateConfig, Action, Selector } from './types/types';
 
 export function createState<T extends object>(config: StateConfig<T>) {
   const store = create<T>(config);

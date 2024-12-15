@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useRef,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useContext, useCallback, useRef, useEffect, useState } from 'react';
 import type {
   StateConfig,
   Action,
@@ -16,7 +9,7 @@ import type {
   DeepPartial,
   DeepReadonly,
   StateSnapshot,
-} from "../types/types";
+} from '../types/types';
 import { createPerformanceMonitor, createDebugLogger, deepMerge, ListenerSet } from '../utils';
 import { DevTools } from '../dev-tools';
 
@@ -38,7 +31,7 @@ export function create<T extends object>(config: StateConfig<T>) {
   const performance = createPerformanceMonitor();
   const debugLogger = createDebugLogger(!!config.options?.devTools);
   const devTools = config.options?.devTools ? new DevTools(config.initialState) : null;
-  
+
   // State container with type safety
   let state: DeepReadonly<T> = config.initialState as DeepReadonly<T>;
   const listeners = new ListenerSet<DeepReadonly<T>>(!!config.options?.devTools);
@@ -59,10 +52,10 @@ export function create<T extends object>(config: StateConfig<T>) {
   // Enhanced storage handling with type safety
   const storage = {
     save: async (data: T) => {
-      if (config.options?.storage && typeof window !== "undefined") {
+      if (config.options?.storage && typeof window !== 'undefined') {
         const { key, serialize = JSON.stringify } = config.options.storage;
         const startTime = performance.now();
-        
+
         try {
           localStorage.setItem(
             key as string,
@@ -71,7 +64,10 @@ export function create<T extends object>(config: StateConfig<T>) {
               data,
             })
           );
-          debugLogger.log('State saved to storage', { key, version: config.options.storage.version });
+          debugLogger.log('State saved to storage', {
+            key,
+            version: config.options.storage.version,
+          });
         } catch (error) {
           debugLogger.error('storage save', error);
           throw new NextStateError({
@@ -85,13 +81,9 @@ export function create<T extends object>(config: StateConfig<T>) {
       }
     },
     load: () => {
-      if (config.options?.storage && typeof window !== "undefined") {
-        const {
-          key,
-          deserialize = JSON.parse,
-          migrations,
-        } = config.options.storage;
-        
+      if (config.options?.storage && typeof window !== 'undefined') {
+        const { key, deserialize = JSON.parse, migrations } = config.options.storage;
+
         const startTime = performance.now();
         try {
           const saved = localStorage.getItem(key as string);
@@ -102,7 +94,10 @@ export function create<T extends object>(config: StateConfig<T>) {
               return data as T;
             } else if (migrations?.[version]) {
               const migratedData = migrations[version](data);
-              debugLogger.log('State migrated', { fromVersion: version, toVersion: config.options.storage.version });
+              debugLogger.log('State migrated', {
+                fromVersion: version,
+                toVersion: config.options.storage.version,
+              });
               return migratedData;
             }
           }
@@ -125,20 +120,17 @@ export function create<T extends object>(config: StateConfig<T>) {
   const setState = (update: DeepPartial<T>, actionType?: string) => {
     pendingUpdates.push(update);
     debugLogger.log('Update queued', { pendingUpdates: pendingUpdates.length });
-    
+
     if (!batchUpdateScheduled) {
       batchUpdateScheduled = true;
       const startTime = performance.now();
 
       Promise.resolve().then(() => {
         try {
-          const nextState = pendingUpdates.reduce(
-            (acc, update) => deepMerge(acc, update),
-            state
-          );
+          const nextState = pendingUpdates.reduce((acc, update) => deepMerge(acc, update), state);
 
           state = nextState as DeepReadonly<T>;
-          
+
           // Log action in DevTools
           if (devTools && actionType) {
             devTools.logAction({
@@ -154,11 +146,11 @@ export function create<T extends object>(config: StateConfig<T>) {
           }
 
           listeners.notify(state, performance);
-          debugLogger.log('Batch update applied', { 
+          debugLogger.log('Batch update applied', {
             updateCount: pendingUpdates.length,
-            duration: performance.now() - startTime 
+            duration: performance.now() - startTime,
           });
-          
+
           if (config.options?.storage) {
             storage.save(state as T).catch((error) => {
               debugLogger.error('storage save after update', error);
@@ -181,10 +173,7 @@ export function create<T extends object>(config: StateConfig<T>) {
   };
 
   // Enhanced selector hook with memoization
-  function useSelector<R>(
-    selector: Selector<T, R>,
-    equalityFn: EqualityFn<R> = Object.is
-  ): R {
+  function useSelector<R>(selector: Selector<T, R>, equalityFn: EqualityFn<R> = Object.is): R {
     const stableSelector = useCallback(selector, []); // Memoize selector
     const [value, setValue] = useState(() => stableSelector(state));
     const prevValue = useRef(value);
@@ -208,9 +197,9 @@ export function create<T extends object>(config: StateConfig<T>) {
         if (!equalityFn(prevValue.current, nextValue)) {
           prevValue.current = nextValue;
           setValue(nextValue);
-          debugLogger.log('Selector value updated', { 
+          debugLogger.log('Selector value updated', {
             hasNewValue: true,
-            selectorId: stableSelector.name || 'anonymous'
+            selectorId: stableSelector.name || 'anonymous',
           });
         }
       };
@@ -225,10 +214,7 @@ export function create<T extends object>(config: StateConfig<T>) {
   }
 
   // Action creator with DevTools integration
-  function createAction<P>(
-    type: string,
-    handler: (payload: P) => DeepPartial<T>
-  ) {
+  function createAction<P>(type: string, handler: (payload: P) => DeepPartial<T>) {
     return (payload: P) => {
       const update = handler(payload);
       setState(update, type);

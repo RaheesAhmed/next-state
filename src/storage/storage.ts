@@ -1,30 +1,27 @@
-import type { NextStateStorage } from '../types/types';
+import { Storage } from '../types/types';
 
-export function createStorage<T>(key: string = 'next-state'): NextStateStorage<T> {
+export function createStorage(): Storage {
+  const storage = typeof window !== 'undefined' ? window.localStorage : new Map<string, string>();
+
   return {
-    async get(): Promise<T | null> {
-      try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-      } catch (error) {
-        console.error('Storage get error:', error);
-        return null;
+    getItem: async (key: string) => {
+      if (storage instanceof Map) {
+        return storage.get(key) ?? null;
+      }
+      return storage.getItem(key);
+    },
+    setItem: async (key: string, value: string) => {
+      if (storage instanceof Map) {
+        storage.set(key, value);
+      } else {
+        storage.setItem(key, value);
       }
     },
-
-    async set(value: T): Promise<void> {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch (error) {
-        console.error('Storage set error:', error);
-      }
-    },
-
-    async remove(): Promise<void> {
-      try {
-        localStorage.removeItem(key);
-      } catch (error) {
-        console.error('Storage remove error:', error);
+    removeItem: async (key: string) => {
+      if (storage instanceof Map) {
+        storage.delete(key);
+      } else {
+        storage.removeItem(key);
       }
     },
   };

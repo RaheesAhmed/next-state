@@ -10,11 +10,11 @@ import React, {
   type ComponentType,
   type FC,
 } from 'react';
-import type { NextStateMiddleware, NextStateConfig } from './types/types';
-import { NextStateError } from './error-boundary';
-import { createStorage } from './storage/storage';
+import type { StateConfig, Storage, Middleware } from '../types/types';
+import { NextStateError } from '../error-boundary';
+import { createStorage } from '../storage/storage';
 
-export function createNextState<T extends object>(config: NextStateConfig<T>) {
+export function createNextState<T extends object>(config: StateConfig<T>) {
   type SetStateFunction = (update: Partial<T> | ((prev: T) => Partial<T>)) => void;
 
   const StateContext = createContext<{
@@ -25,12 +25,12 @@ export function createNextState<T extends object>(config: NextStateConfig<T>) {
     ) => Promise<void>;
   } | null>(null);
 
-  const storage = createStorage<T>();
+  const storage = createStorage();
 
   const NextStateProvider: FC<{
     children: ReactNode;
     initialData?: Partial<T>;
-    middleware?: NextStateMiddleware<T>[];
+    middleware?: Middleware<T>[];
   }> = ({ children, initialData, middleware = [] }) => {
     const [state, setStateInternal] = useState<T>(() => ({
       ...config.initialState,
@@ -40,9 +40,9 @@ export function createNextState<T extends object>(config: NextStateConfig<T>) {
     // Load persisted state
     useEffect(() => {
       const loadState = async () => {
-        const savedState = await storage.get();
+        const savedState = await storage.getItem('state');
         if (savedState) {
-          setStateInternal((prev) => ({ ...prev, ...savedState }));
+          setStateInternal((prev) => ({ ...prev, ...JSON.parse(savedState) }));
         }
       };
       loadState();
@@ -58,14 +58,17 @@ export function createNextState<T extends object>(config: NextStateConfig<T>) {
           // Execute middleware
           middleware.forEach((mw) => {
             try {
-              mw.onStateChange?.(prev, next);
+              const result = mw(prev, nextUpdate);
+              if (result instanceof Promise) {
+                result.catch(console.error);
+              }
             } catch (error) {
-              mw.onError?.(error as Error);
+              console.error('Middleware error:', error);
             }
           });
 
           // Persist state
-          storage.set(next);
+          storage.setItem('state', JSON.stringify(next)).catch(console.error);
 
           return next;
         });

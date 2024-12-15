@@ -1,139 +1,75 @@
-// Type utilities
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+// Deep merge utility
+export function deepMerge<T extends object>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+  
+  for (const key in source) {
+    const value = source[key];
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = deepMerge(result[key] as object, value as object) as any;
+    } else {
+      result[key] = value as any;
+    }
+  }
+  
+  return result;
+}
+
+// Performance monitoring
+export const createPerformanceMonitor = () => {
+  let updateCount = 0;
+  let totalUpdateTime = 0;
+  let lastUpdateTime = 0;
+
+  return {
+    trackUpdate: (duration: number) => {
+      updateCount++;
+      totalUpdateTime += duration;
+      lastUpdateTime = duration;
+    },
+    getMetrics: () => ({
+      updates: updateCount,
+      avgUpdateTime: totalUpdateTime / updateCount,
+      lastUpdateTime
+    })
+  };
 };
 
-export type ActionCreator<T, A extends any[]> = (...args: A) => (state: T) => Partial<T>;
-
-// State utilities
-export function isStateEqual<T>(prev: T, next: T): boolean {
-  if (prev === next) return true;
-  if (typeof prev !== typeof next) return false;
-  if (typeof prev !== 'object') return prev === next;
-  if (prev === null || next === null) return prev === next;
-  
-  const prevKeys = Object.keys(prev);
-  const nextKeys = Object.keys(next as object);
-  
-  if (prevKeys.length !== nextKeys.length) return false;
-  
-  return prevKeys.every(key => 
-    isStateEqual((prev as any)[key], (next as any)[key])
-  );
-}
-
-// Selector utilities
-export function createSelector<T, R>(
-  selector: (state: T) => R,
-  equals: (prev: R, next: R) => boolean = isStateEqual
-) {
-  let prevResult: R;
-  let prevState: T;
-  
-  return (state: T): R => {
-    if (state === prevState) {
-      return prevResult;
+// Debug logger
+export const createDebugLogger = (enabled: boolean = false) => ({
+  log: (message: string, data?: any) => {
+    if (enabled) {
+      console.log(`[NextState] ${message}`, data);
     }
-    
-    const nextResult = selector(state);
-    if (equals(prevResult, nextResult)) {
-      return prevResult;
+  },
+  error: (message: string, error?: any) => {
+    if (enabled) {
+      console.error(`[NextState] ${message}`, error);
     }
-    
-    prevState = state;
-    prevResult = nextResult;
-    return nextResult;
-  };
-}
-
-// Storage utilities
-export function createStorage(key: string) {
-  return {
-    get: async <T>(): Promise<T | null> => {
-      try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-      } catch {
-        return null;
-      }
-    },
-    set: async <T>(value: T): Promise<void> => {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-      } catch {
-        // Handle storage errors
-      }
-    },
-    remove: async (): Promise<void> => {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Handle storage errors
-      }
-    },
-  };
-}
-
-// Performance utilities
-export function debounce<T extends (...args: any[]) => any>(
-  fn: T,
-  ms: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), ms);
-  };
-}
-
-export function throttle<T extends (...args: any[]) => any>(
-  fn: T,
-  ms: number
-): (...args: Parameters<T>) => void {
-  let lastRun = 0;
-  let timeoutId: ReturnType<typeof setTimeout>;
-  
-  return (...args: Parameters<T>) => {
-    const now = Date.now();
-    
-    if (now - lastRun >= ms) {
-      fn(...args);
-      lastRun = now;
-    } else {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        fn(...args);
-        lastRun = Date.now();
-      }, ms - (now - lastRun));
-    }
-  };
-}
-
-// Error utilities
-export class NextStateError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-    public readonly details?: unknown
-  ) {
-    super(message);
-    this.name = 'NextStateError';
   }
-}
+});
 
-export function isNextStateError(error: unknown): error is NextStateError {
-  return error instanceof NextStateError;
-}
+// Listener Set with type safety
+export class ListenerSet<T extends Function> {
+  private listeners = new Set<T>();
 
-// Validation utilities
-export function validateState<T>(state: T, schema: any): boolean {
-  // Implementation will depend on chosen validation library
-  return true;
-}
+  add(listener: T) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
-// Export all utilities
-export * from './types';
-export * from './performance';
-export * from './storage';
-export * from './validation'; 
+  remove(listener: T) {
+    this.listeners.delete(listener);
+  }
+
+  notify(...args: any[]) {
+    this.listeners.forEach(listener => listener(...args));
+  }
+
+  clear() {
+    this.listeners.clear();
+  }
+
+  get size() {
+    return this.listeners.size;
+  }
+} 

@@ -1,4 +1,4 @@
-import { type NextState, type StateConfig } from '../core';
+import { type StateConfig } from '../types/types';
 
 export interface ServerStateConfig<T> extends StateConfig<T> {
   cache?: {
@@ -12,7 +12,7 @@ export interface ServerStateConfig<T> extends StateConfig<T> {
   };
 }
 
-export interface ServerState<T> extends NextState<T> {
+export interface ServerState<T> {
   revalidate: () => Promise<void>;
   mutate: (data: Partial<T>) => Promise<void>;
   invalidate: () => Promise<void>;
@@ -26,11 +26,11 @@ export const createServerState = <T extends object>(
 };
 
 // Export server-specific middleware
-export { createServerMiddleware } from './middleware';
-export { createServerStorage } from './storage';
+export { createServerMiddleware } from '../middleware/middleware-registry';
+export { createServerStorage } from '../storage/storage';
 export { createServerCache } from './cache';
 
 // Export server utilities
 export { withServerState } from './with-server-state';
 export { createServerAction } from './actions';
-export { createServerSelector } from './selectors'; 
+export { createServerSelector } from './selectors';

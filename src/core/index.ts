@@ -1,11 +1,9 @@
 export { createNextState } from './create-next-state';
-export { createStore } from './store';
-export { createMiddleware } from './middleware';
-export * from './types';
+export { createStore } from '../store/store';
+export { createMiddleware } from '../middleware/middleware-registry';
 
 // Re-export core types
 export type {
-  NextState,
   StateConfig,
   StateOptions,
   Middleware,
@@ -14,4 +12,4 @@ export type {
   Action,
   AsyncAction,
   StateUpdate,
-} from './types'; 
+} from '../types/types';

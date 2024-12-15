@@ -1,39 +1,59 @@
-import React from 'react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
-import Counter from './counter';
+import { describe, it, expect } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { createNextState } from '../src';
+import { useSelector } from '../src/hooks';
 
-describe('Counter', () => {
-  beforeEach(() => {
-    // Reset Date mock before each test
-    vi.useFakeTimers();
-    render(<Counter />);
+interface CounterState {
+  count: number;
+  lastUpdated: string;
+}
+
+describe('Counter State', () => {
+  it('should initialize with default state', () => {
+    const { useNextState } = createNextState<CounterState>({
+      initialState: {
+        count: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
+
+    const { result } = renderHook(() => useNextState());
+    expect(result.current.state.count).toBe(0);
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
+  it('should update count when setState is called', () => {
+    const { useNextState } = createNextState<CounterState>({
+      initialState: {
+        count: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
+
+    const { result } = renderHook(() => useNextState());
+
+    act(() => {
+      result.current.setState({
+        count: 1,
+        lastUpdated: new Date().toISOString(),
+      });
+    });
+
+    expect(result.current.state.count).toBe(1);
   });
 
-  it('should render initial count', () => {
-    expect(screen.getByText(/Count: 0/)).toBeDefined();
-  });
+  it('should select specific state using selector', () => {
+    const { useNextState } = createNextState<CounterState>({
+      initialState: {
+        count: 0,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
 
-  it('should increment count', () => {
-    fireEvent.click(screen.getByText('Increment'));
-    expect(screen.getByText(/Count: 1/)).toBeDefined();
-  });
+    const { result } = renderHook(() => {
+      const state = useNextState();
+      return useSelector(state, (state) => ({ count: state.count }));
+    });
 
-  it('should decrement count', () => {
-    fireEvent.click(screen.getByText('Decrement'));
-    expect(screen.getByText(/Count: -1/)).toBeDefined();
-  });
-
-  it('should update lastUpdated timestamp', () => {
-    const initialTimestamp = screen.getByText(/Last Updated:/).textContent;
-    // Advance timer by 1 second
-    vi.advanceTimersByTime(1000);
-    fireEvent.click(screen.getByText('Increment'));
-    const newTimestamp = screen.getByText(/Last Updated:/).textContent;
-    expect(newTimestamp).not.toBe(initialTimestamp);
+    expect(result.current).toEqual({ count: 0 });
   });
 });
