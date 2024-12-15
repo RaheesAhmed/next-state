@@ -1,6 +1,6 @@
 {
   "name": "nextjs-state",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Type-safe state management for Next.js applications",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
