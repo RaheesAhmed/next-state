@@ -1,5 +1,5 @@
 {
-  "name": "next-state",
+  "name": "nextjs-state",
   "version": "0.1.0",
   "description": "Type-safe state management for Next.js applications",
   "main": "dist/index.js",
