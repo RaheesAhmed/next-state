@@ -17,9 +17,6 @@
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "prepare": "npm run build"
   },
-  "dependencies": {
-    "react": "^19.0.0"
-  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -31,6 +28,7 @@
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
     "prettier": "^3.0.0",
+    "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
@@ -38,7 +36,7 @@
   },
   "peerDependencies": {
     "next": ">=15.0.0",
-    "react": ">=19.0.0"
+    "react": ">=18.0.0"
   },
   "keywords": [
     "nextjs",
@@ -47,5 +45,6 @@
     "react"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "sideEffects": false
 }
